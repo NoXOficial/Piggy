@@ -1,0 +1,325 @@
+--[========================================================================--
+-- PIGGY-SCRIPT (Invisible, Explosión y Borrado Total de Bot + Balde/Cuerda/Armas)
+--[========================================================================--
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+player.CharacterAdded:Connect(function(newChar)
+	character = newChar
+	humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
+end)
+
+-- 1. CREACIÓN DE LA INTERFAZ GRÁFICA (SCREEN GUI)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PiggyScriptGui"
+screenGui.ResetOnSpawn = false
+pcall(function()
+	screenGui.Parent = CoreGui
+end)
+if not screenGui.Parent then
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+end
+
+-- Ventana Principal
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 220, 0, 380)
+mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 10)
+mainCorner.Parent = mainFrame
+
+-- Título Superior
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+titleLabel.Text = "Piggy-Script"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 18
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 10)
+titleCorner.Parent = titleLabel
+
+-- Contenedor de Opciones
+local scrollList = Instance.new("ScrollingFrame")
+scrollList.Size = UDim2.new(1, -10, 1, -50)
+scrollList.Position = UDim2.new(0, 5, 0, 45)
+scrollList.BackgroundTransparency = 1
+scrollList.CanvasSize = UDim2.new(0, 0, 0, 500)
+scrollList.ScrollBarThickness = 4
+scrollList.Parent = mainFrame
+
+local uiLayout = Instance.new("UIListLayout")
+uiLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiLayout.Padding = UDim.new(0, 6)
+uiLayout.Parent = scrollList
+
+local function createSectionTitle(text: string, order: number)
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 0, 25)
+	label.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	label.Text = "  " .. text
+	label.TextColor3 = Color3.fromRGB(255, 170, 0)
+	label.TextSize = 14
+	label.Font = Enum.Font.GothamBold
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.LayoutOrder = order
+	label.Parent = scrollList
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = label
+	return label
+end
+
+local function createButton(text: string, color: Color3, order: number, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(1, 0, 0, 32)
+	btn.BackgroundColor3 = color
+	btn.Text = text
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamSemibold
+	btn.LayoutOrder = order
+	btn.Parent = scrollList
+
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 6)
+	corner.Parent = btn
+
+	btn.MouseButton1Click:Connect(callback)
+	return btn
+end
+
+--------------------------------------------------------------------------------
+-- SECCIÓN 1: PIGGY (Invisibilidad, Explosión y Borrado Total)
+--------------------------------------------------------------------------------
+createSectionTitle("Piggy:", 1)
+
+createButton("Destroy Piggy", Color3.fromRGB(180, 50, 50), 2, function()
+	local foundPiggy = false
+	
+	-- Buscamos por la carpeta PiggyNPC o cualquier Humanoid que actúe como bot/enemigo
+	for _, descendant in ipairs(Workspace:GetDescendants()) do
+		if descendant:IsA("Humanoid") then
+			local model = descendant.Parent
+			-- Verificamos que no sea el jugador local
+			if model and model ~= character and not model:IsDescendantOf(character) then
+				if string.find(string.lower(model.Name), "piggy") or string.find(string.lower(descendant.Name), "piggy") or model.Name == "PiggyBot" then
+					foundPiggy = true
+					
+					-- 1. Efecto de Explosión visual en su posición exacta
+					local rootPart = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChild("Torso")
+					if rootPart then
+						local explosion = Instance.new("Explosion")
+						explosion.Position = rootPart.Position
+						explosion.BlastRadius = 0 -- Daño 0 para que sea solo visual y no rompa nada del mapa
+						explosion.BlastPressure = 0
+						explosion.Parent = Workspace
+					end
+					
+					-- 2. Volverlo invisible por completo (partes y accesorios)
+					for _, part in ipairs(model:GetDescendants()) do
+						if part:IsA("BasePart") then
+							part.Transparency = 1
+							part.CanCollide = false
+						elseif part:IsA("Decal") or part:IsA("Texture") then
+							part.Transparency = 1
+						end
+					end
+					
+					-- 3. Destruir modelo y carpeta contenedora si aplica
+					task.delay(0.1, function()
+						if model and model.Parent then
+							model:Destroy()
+						end
+					end)
+				end
+			end
+		end
+	end
+
+	-- Limpieza extra de la carpeta PiggyNPC por si acaso
+	local piggyFolder = Workspace:FindFirstChild("PiggyNPC")
+	if piggyFolder then
+		piggyFolder:Destroy()
+		foundPiggy = true
+	end
+
+	if foundPiggy then
+		print("💥 Piggy explotó, se volvió invisible y fue eliminado por completo.")
+	else
+		warn("⚠️ No se encontró ningún bot de Piggy activo en este momento.")
+	end
+end)
+
+local espEnabled = false
+createButton("ESP Piggy (Toggle)", Color3.fromRGB(70, 130, 180), 3, function()
+	espEnabled = not espEnabled
+	for _, descendant in ipairs(Workspace:GetDescendants()) do
+		if descendant:IsA("Humanoid") and descendant.Parent ~= character then
+			local model = descendant.Parent
+			if string.find(string.lower(model.Name), "piggy") or model.Name == "PiggyBot" then
+				local highlight = model:FindFirstChild("PiggyESP")
+				if espEnabled then
+					if not highlight then
+						highlight = Instance.new("Highlight")
+						highlight.Name = "PiggyESP"
+						highlight.FillColor = Color3.fromRGB(255, 0, 0)
+						highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+						highlight.Parent = model
+					end
+				else
+					if highlight then highlight:Destroy() end
+				end
+			end
+		end
+	end
+end)
+
+--------------------------------------------------------------------------------
+-- SECCIÓN 2: MAP (Balde, Cuerda, Armas, Llaves y Filtro de Mochila)
+--------------------------------------------------------------------------------
+createSectionTitle("Map:", 10)
+
+local mapItemsContainer = Instance.new("Frame")
+mapItemsContainer.Size = UDim2.new(1, 0, 0, 0)
+mapItemsContainer.AutomaticSize = Enum.AutomaticSize.Y
+mapItemsContainer.BackgroundTransparency = 1
+mapItemsContainer.LayoutOrder = 11
+mapItemsContainer.Parent = scrollList
+
+local mapLayout = Instance.new("UIListLayout")
+mapLayout.SortOrder = Enum.SortOrder.LayoutOrder
+mapLayout.Padding = UDim.new(0, 4)
+mapLayout.Parent = mapItemsContainer
+
+-- Palabras clave incluyendo Hammer, Rope, Bucket, Gun, Ammo, etc.
+local targetKeywords = {"Hammer", "Rope", "Bucket", "Key", "Wrench", "Pliers", "Tape", "C4", "Water", "Carrot", "GreenKey", "RedKey", "BlueKey", "YellowKey", "PurpleKey", "OrangeKey", "PinkKey", "Gun", "Ammo", "Bullet"}
+
+local function getPartFromModel(obj)
+	if obj:IsA("Model") then
+		return obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart", true)
+	elseif obj:IsA("BasePart") then
+		return obj
+	end
+	return nil
+end
+
+local function playerHasItem(itemName)
+	local backpack = player:FindFirstChild("Backpack")
+	if backpack then
+		for _, item in ipairs(backpack:GetChildren()) do
+			if string.lower(item.Name) == string.lower(itemName) or string.find(string.lower(item.Name), string.lower(itemName)) then
+				return true
+			end
+		end
+	end
+	if character then
+		for _, item in ipairs(character:GetChildren()) do
+			if item:IsA("Tool") and (string.lower(item.Name) == string.lower(itemName) or string.find(string.lower(item.Name), string.lower(itemName))) then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+local trackedButtons = {}
+
+local function refreshMapItems()
+	for _, btn in pairs(trackedButtons) do
+		if btn then btn:Destroy() end
+	end
+	trackedButtons = {}
+
+	local count = 0
+	for _, descendant in ipairs(Workspace:GetDescendants()) do
+		local nameLower = string.lower(descendant.Name)
+		
+		-- Excluir llave blanca vieja
+		local isOldWhiteKey = (string.find(nameLower, "whitekey") and (string.find(nameLower, "old") or string.find(nameLower, "chapter1") or string.find(nameLower, "c1")))
+		
+		if not isOldWhiteKey then
+			local matched = false
+			for _, keyword in ipairs(targetKeywords) do
+				if string.find(nameLower, string.lower(keyword)) then
+					matched = true
+					break
+				end
+			end
+
+			if matched then
+				local itemName = descendant.Name
+				if not playerHasItem(itemName) then
+					local part = getPartFromModel(descendant)
+					if part and not descendant:IsDescendantOf(character) then
+						count += 1
+						
+						local btn = Instance.new("TextButton")
+						btn.Size = UDim2.new(1, 0, 0, 28)
+						btn.BackgroundColor3 = Color3.fromRGB(50, 130, 80)
+						btn.Text = "Teleport -> " .. itemName
+						btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+						btn.TextSize = 12
+						btn.Font = Enum.Font.Gotham
+						btn.LayoutOrder = count
+						btn.Parent = mapItemsContainer
+
+						local corner = Instance.new("UICorner")
+						corner.CornerRadius = UDim.new(0, 5)
+						corner.Parent = btn
+
+						btn.MouseButton1Click:Connect(function()
+							if humanoidRootPart and part then
+								local currentPos = part.Position
+								local safeCFrame = CFrame.new(currentPos) * CFrame.new(0, 0, -3)
+								
+								local rayOrigin = safeCFrame.Position + Vector3.new(0, 5, 0)
+								local rayDirection = Vector3.new(0, -20, 0)
+								local raycastParams = RaycastParams.new()
+								raycastParams.FilterDescendantsInstances = {character}
+								raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+								
+								local rayResult = Workspace:Raycast(rayOrigin, rayDirection, raycastParams)
+								
+								if rayResult then
+									humanoidRootPart.CFrame = CFrame.new(rayResult.Position + Vector3.new(0, 3, 0))
+								else
+									humanoidRootPart.CFrame = safeCFrame + Vector3.new(0, 3, 0)
+								end
+							end
+						end)
+
+						table.insert(trackedButtons, btn)
+					end
+				end
+			end
+		end
+	end
+end
+
+createButton("🔄 Actualizar Objetos del Mapa", Color3.fromRGB(100, 80, 160), 12, function()
+	refreshMapItems()
+end)
+
+task.spawn(function()
+	task.wait(1)
+	refreshMapItems()
+end)
